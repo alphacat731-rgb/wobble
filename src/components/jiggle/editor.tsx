@@ -103,6 +103,7 @@ export function Editor() {
   const engineRef = useRef<JiggleEngine | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const projectRef = useRef<HTMLInputElement>(null);
+  const motionCleanupRef = useRef<(() => void) | null>(null);
   const apiRef = useRef<QaApi>({
     loadSample: async () => {},
     exercise: () => null,
@@ -128,7 +129,7 @@ export function Editor() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
-  const [motion, setMotion] = useState<"off" | "on" | "denied">("off");
+  const [motion, setMotion] = useState<"off" | "starting" | "on" | "denied">("off");
   const [leftW, setLeftW] = useState(240);
   const [rightW, setRightW] = useState(300);
   const [dragOver, setDragOver] = useState(false);
@@ -169,6 +170,8 @@ export function Editor() {
       .then((project) => setHasSession(Boolean(project)))
       .catch(() => setHasSession(false));
     return () => {
+      motionCleanupRef.current?.();
+      motionCleanupRef.current = null;
       engine.destroy();
       if (engineRef.current === engine) engineRef.current = null;
     };
@@ -480,37 +483,87 @@ export function Editor() {
     }
   }
 
+  function stopMotion() {
+    motionCleanupRef.current?.();
+    motionCleanupRef.current = null;
+    setMotion("off");
+  }
+
   async function enableMotion() {
     try {
-      const motionEvent = DeviceMotionEvent as unknown as { requestPermission?: () => Promise<PermissionState | string> };
+      if (typeof DeviceMotionEvent === "undefined") {
+        setMotion("denied");
+        toast.error("This browser does not expose phone motion sensors.");
+        return;
+      }
+
+      const motionEvent = DeviceMotionEvent as unknown as {
+        requestPermission?: () => Promise<PermissionState | string>;
+      };
       if (typeof motionEvent.requestPermission === "function") {
         const result = await motionEvent.requestPermission();
         if (result !== "granted") {
           setMotion("denied");
-          toast.error("Motion permission was denied. Use the Shake button instead.");
+          toast.error("Motion permission was denied. You can still use the manual Shake button.");
           return;
         }
       }
-      const damp = { x: 0, y: 0 };
+
+      motionCleanupRef.current?.();
+      let gravityReady = false;
+      let gravity = { x: 0, y: 0, z: 0 };
+      let lastTime = 0;
+      let reportedActive = false;
+
       const onMotion = (event: DeviceMotionEvent) => {
-        let ax = event.acceleration?.x;
-        let ay = event.acceleration?.y;
-        if (ax == null || ay == null) {
-          const gravity = event.accelerationIncludingGravity;
-          if (gravity?.x == null || gravity.y == null) return;
-          damp.x = damp.x * 0.9 + gravity.x * 0.1;
-          damp.y = damp.y * 0.9 + gravity.y * 0.1;
-          ax = gravity.x - damp.x;
-          ay = gravity.y - damp.y;
+        let ax = 0;
+        let ay = 0;
+        let az = 0;
+        const linear = event.acceleration;
+
+        if (linear?.x != null && linear.y != null && linear.z != null) {
+          ax = linear.x;
+          ay = linear.y;
+          az = linear.z;
+        } else {
+          // Some Android browsers only expose acceleration including gravity.
+          // Track gravity slowly, then use the high-pass remainder as shake.
+          const sample = event.accelerationIncludingGravity;
+          if (sample?.x == null || sample.y == null || sample.z == null) return;
+          const now = performance.now();
+          const dt = lastTime ? Math.max(0.008, Math.min(0.12, (now - lastTime) / 1000)) : 0.016;
+          lastTime = now;
+          if (!gravityReady) {
+            gravity = { x: sample.x, y: sample.y, z: sample.z };
+            gravityReady = true;
+            return;
+          }
+          const alpha = Math.exp(-dt / 0.42);
+          gravity.x = gravity.x * alpha + sample.x * (1 - alpha);
+          gravity.y = gravity.y * alpha + sample.y * (1 - alpha);
+          gravity.z = gravity.z * alpha + sample.z * (1 - alpha);
+          ax = sample.x - gravity.x;
+          ay = sample.y - gravity.y;
+          az = sample.z - gravity.z;
         }
-        engineRef.current?.applyMotion(ax, ay);
+
+        engineRef.current?.applyMotion(ax, ay, az, event.interval || 16);
+        if (!reportedActive) {
+          reportedActive = true;
+          setMotion("on");
+          toast.success("Phone shake is active. Move your phone to wobble the image.");
+        }
       };
-      window.addEventListener("devicemotion", onMotion);
-      setMotion("on");
-      toast.success("Motion sensors on. Shake the phone to wobble the selection.");
-    } catch {
+
+      window.addEventListener("devicemotion", onMotion, { passive: true });
+      motionCleanupRef.current = () => window.removeEventListener("devicemotion", onMotion);
+      setMotion("starting");
+      toast.success("Motion listener enabled. Move your phone gently to test it.");
+    } catch (error) {
+      motionCleanupRef.current?.();
+      motionCleanupRef.current = null;
       setMotion("denied");
-      toast.error("This browser has no motion sensor. Use the Shake button.");
+      toast.error(error instanceof Error ? error.message : "Could not enable phone motion sensors.");
     }
   }
 
@@ -557,6 +610,16 @@ export function Editor() {
           <ToolButton icon={<Lasso className="size-4" />} label="Lasso" shortcut="L" active={tool === "lasso"} onClick={() => setTool("lasso")} />
           <ToolButton icon={<PaintBucket className="size-4" />} label="Fill" shortcut="G" active={tool === "fill"} onClick={() => setTool("fill")} />
         </div>
+      </section>
+      <section className="flex flex-col gap-2">
+        <h2 className="text-xs font-medium text-muted">Mask actions</h2>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button type="button" aria-label="Invert mask" className="h-9 rounded-md bg-surface-2 text-xs disabled:opacity-40" disabled={!active} onClick={() => engineRef.current?.invertActiveMask()}>Invert</button>
+          <button type="button" aria-label="Feather mask" className="h-9 rounded-md bg-surface-2 text-xs disabled:opacity-40" disabled={!active} onClick={() => engineRef.current?.featherActiveMask()}>Feather edge</button>
+          <button type="button" aria-label="Expand mask" className="h-9 rounded-md bg-surface-2 text-xs disabled:opacity-40" disabled={!active} onClick={() => engineRef.current?.expandActiveMask()}>Expand</button>
+          <button type="button" aria-label="Contract mask" className="h-9 rounded-md bg-surface-2 text-xs disabled:opacity-40" disabled={!active} onClick={() => engineRef.current?.contractActiveMask()}>Contract</button>
+        </div>
+        <p className="text-xs leading-relaxed text-muted">Refine the active region. Every mask action can be undone.</p>
       </section>
       <section className="flex flex-col gap-2">
         <h2 className="text-xs font-medium text-muted">Brush</h2>
@@ -752,9 +815,15 @@ export function Editor() {
         )}
         <Field label="Mesh quality" value={quality} onChange={setQuality} />
         <Field label="Shake sensitivity" value={shake} onChange={setShake} />
-        <button type="button" className="h-10 rounded-md bg-surface-3 text-sm disabled:opacity-50" onClick={() => void enableMotion()} disabled={motion === "on"}>
-          {motion === "on" ? "Motion sensors on" : motion === "denied" ? "Sensors blocked — use Shake" : "Enable motion sensors"}
+        <button
+          type="button"
+          aria-label={motion === "on" ? "Disable phone shake" : "Enable phone shake"}
+          className="h-10 rounded-md bg-surface-3 text-sm"
+          onClick={() => (motion === "on" || motion === "starting" ? stopMotion() : void enableMotion())}
+        >
+          {motion === "on" ? "Phone shake active · Turn off" : motion === "starting" ? "Waiting for phone movement · Turn off" : motion === "denied" ? "Try phone shake again" : "Enable phone shake"}
         </button>
+        <p className="text-xs leading-relaxed text-muted">Allow motion access, then shake your phone in any direction. The manual Shake button always remains available.</p>
       </section>
     </div>
   );
@@ -933,6 +1002,14 @@ export function Editor() {
             {paused ? <Play className="size-4" /> : <Pause className="size-4" />}
           </IconButton>
           <IconButton label="Shake selection" disabled={!imageOn} onClick={() => engineRef.current?.shake(1)}>
+            <Vibrate className="size-4" />
+          </IconButton>
+          <IconButton
+            label={motion === "on" ? "Disable phone shake" : motion === "starting" ? "Stop phone shake setup" : "Enable phone shake"}
+            pressed={motion === "on"}
+            disabled={!imageOn}
+            onClick={() => (motion === "on" || motion === "starting" ? stopMotion() : void enableMotion())}
+          >
             <Vibrate className="size-4" />
           </IconButton>
           <IconButton label={overlay ? "Hide selection overlay" : "Show selection overlay"} pressed={overlay} onClick={() => setOverlay((value) => !value)}>
