@@ -57,7 +57,8 @@ function makePng(width = 64, height = 48) {
 }
 
 const rawBasePath = process.env.WOBBLE_BASE_PATH ?? "/";
-const basePath = `/${rawBasePath.replace(/^\/+|\/+$/g, "")}`.replace(/^\/$/, "/");
+const normalizedBasePath = rawBasePath.replace(/^\/+|\/+$/g, "");
+const basePath = normalizedBasePath ? `/${normalizedBasePath}/` : "/";
 const origin = `http://127.0.0.1:8081${basePath}`;
 const mode = process.env.WOBBLE_PREVIEW_MODE;
 const modeArgs = mode ? ["--mode", mode] : [];
