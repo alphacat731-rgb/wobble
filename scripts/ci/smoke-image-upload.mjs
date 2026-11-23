@@ -29,8 +29,8 @@ function makePng(width = 64, height = 48) {
   const header = Buffer.alloc(13);
   header.writeUInt32BE(width, 0);
   header.writeUInt32BE(height, 4);
-  header[8] = 8; // 8-bit channels
-  header[9] = 6; // RGBA
+  header[8] = 8;
+  header[9] = 6;
   header[10] = 0;
   header[11] = 0;
   header[12] = 0;
@@ -38,7 +38,7 @@ function makePng(width = 64, height = 48) {
   const scanlines = Buffer.alloc(height * (1 + width * 4));
   for (let y = 0; y < height; y++) {
     const row = y * (1 + width * 4);
-    scanlines[row] = 0; // PNG filter: None
+    scanlines[row] = 0;
     for (let x = 0; x < width; x++) {
       const pixel = row + 1 + x * 4;
       scanlines[pixel] = Math.round((x / Math.max(1, width - 1)) * 255);
@@ -56,11 +56,31 @@ function makePng(width = 64, height = 48) {
   ]);
 }
 
-const origin = "http://127.0.0.1:8081";
+const rawBasePath = process.env.WOBBLE_BASE_PATH ?? "/";
+const basePath = `/${rawBasePath.replace(/^\/+|\/+$/g, "")}`.replace(/^\/$/, "/");
+const origin = `http://127.0.0.1:8081${basePath}`;
+const mode = process.env.WOBBLE_PREVIEW_MODE;
+const modeArgs = mode ? ["--mode", mode] : [];
 const server = spawn(
   process.execPath,
-  ["scripts/with-app-env.mjs", "vite", "preview", "--host", "127.0.0.1", "--port", "8081", "--strictPort"],
-  { stdio: "inherit", env: { ...process.env, PATH: `${process.cwd()}/node_modules/.bin:${process.env.PATH ?? ""}` } },
+  [
+    "scripts/with-app-env.mjs",
+    "vite",
+    "preview",
+    ...modeArgs,
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8081",
+    "--strictPort",
+  ],
+  {
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      PATH: `${process.cwd()}/node_modules/.bin:${process.env.PATH ?? ""}`,
+    },
+  },
 );
 
 let browser;
@@ -79,7 +99,7 @@ try {
     }
     await delay(500);
   }
-  if (!ready) throw new Error("The production preview did not become ready");
+  if (!ready) throw new Error(`The production preview did not become ready at ${origin}`);
 
   browser = await chromium.launch({
     headless: true,
@@ -90,6 +110,21 @@ try {
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
   await page.goto(origin, { waitUntil: "networkidle" });
+
+  if (mode === "pages") {
+    const manifestUrl = await page.locator('link[rel="manifest"]').getAttribute("href");
+    if (manifestUrl !== `${basePath}manifest.webmanifest`) {
+      throw new Error(`Unexpected manifest URL: ${manifestUrl}`);
+    }
+    const manifestResponse = await page.request.get(new URL(manifestUrl, origin).href);
+    if (!manifestResponse.ok()) throw new Error(`Manifest request failed: ${manifestResponse.status()}`);
+    const manifest = await manifestResponse.json();
+    if (manifest.start_url !== "./" || manifest.scope !== "./") {
+      throw new Error(`Manifest is not project-path safe: ${JSON.stringify(manifest)}`);
+    }
+    console.log("PASS: GitHub Pages base path and static web manifest resolved.");
+  }
+
   await page.locator('input[type="file"]').first().setInputFiles({
     name: "android-photo.bin",
     mimeType: "application/octet-stream",
