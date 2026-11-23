@@ -60,7 +60,7 @@ const origin = "http://127.0.0.1:8081";
 const server = spawn(
   process.execPath,
   ["scripts/with-app-env.mjs", "vite", "preview", "--host", "127.0.0.1", "--port", "8081", "--strictPort"],
-  { stdio: "inherit" },
+  { stdio: "inherit", env: { ...process.env, PATH: `${process.cwd()}/node_modules/.bin:${process.env.PATH ?? ""}` } },
 );
 
 let browser;
