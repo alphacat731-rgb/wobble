@@ -148,6 +148,7 @@ try {
   }
   // Exercise the mobile motion toggle with a synthetic sensor event. Real
   // accelerometer access still requires a physical phone and user permission.
+  await page.getByRole("button", { name: "Physics", exact: true }).click();
   await page.getByRole("button", { name: "Enable phone shake" }).click();
   await page.evaluate(() => {
     if (typeof DeviceMotionEvent === "undefined") throw new Error("DeviceMotionEvent is unavailable");
@@ -159,6 +160,7 @@ try {
   });
   await page.getByRole("button", { name: "Disable phone shake" }).waitFor({ state: "visible" });
 
+  await page.getByRole("button", { name: "Physics", exact: true }).click();
   await page.getByRole("button", { name: "Tools", exact: true }).click();
   for (const label of ["Invert mask", "Feather mask", "Expand mask", "Contract mask"]) {
     await page.getByRole("button", { name: label }).waitFor({ state: "visible" });
