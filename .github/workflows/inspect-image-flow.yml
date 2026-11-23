@@ -1,0 +1,39 @@
+name: Inspect Wobble image flow
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/inspect-image-flow.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect upload and runtime assumptions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir extracted
+          unzip -q grok-workspace.zip -d extracted
+          cd extracted
+          echo "=== EDITOR MATCHES ==="
+          grep -nE 'openFile|openProjectFile|loadSample|imageOn|setImageOn|setImage\(|loadDataUrl|readFile|accept=' src/components/jiggle/editor.tsx
+          echo "=== EDITOR UPLOAD HANDLER ==="
+          sed -n '250,350p' src/components/jiggle/editor.tsx
+          echo "=== ENGINE IMAGE METHODS ==="
+          grep -nE 'loadDataUrl|loadImage|dataUrl|imageReady|workCanvas' src/lib/jiggle/engine.ts | head -90
+          echo "=== ENGINE INITIAL LOAD ==="
+          sed -n '220,330p' src/lib/jiggle/engine.ts
+          echo "=== APP ENV ==="
+          cat .grok/app-env.json
+          echo "=== DEPLOY TARGET NOTES ==="
+          sed -n '1,240p' .grok/references/deploy-target.md
+          echo "=== AUTH GATE ==="
+          sed -n '1,200p' src/lib/auth/gates.tsx
+          echo "=== ROOT ROUTE ==="
+          cat src/routes/__root.tsx
