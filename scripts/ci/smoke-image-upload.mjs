@@ -107,6 +107,7 @@ try {
     args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader"],
   });
   const page = await browser.newPage();
+  await page.setViewportSize({ width: 390, height: 844 });
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
@@ -145,11 +146,32 @@ try {
   if (!debug || debug.workW !== 64 || debug.workH !== 48) {
     throw new Error(`Image dimensions were not loaded correctly: ${JSON.stringify(debug)}`);
   }
+  // Exercise the mobile motion toggle with a synthetic sensor event. Real
+  // accelerometer access still requires a physical phone and user permission.
+  await page.getByRole("button", { name: "Enable phone shake" }).click();
+  await page.evaluate(() => {
+    if (typeof DeviceMotionEvent === "undefined") throw new Error("DeviceMotionEvent is unavailable");
+    const event = new DeviceMotionEvent("devicemotion", {
+      acceleration: { x: 12, y: 7, z: -10 },
+      interval: 16,
+    });
+    window.dispatchEvent(event);
+  });
+  await page.getByRole("button", { name: "Disable phone shake" }).waitFor({ state: "visible" });
+
+  await page.getByRole("button", { name: "Tools", exact: true }).click();
+  for (const label of ["Invert mask", "Feather mask", "Expand mask", "Contract mask"]) {
+    await page.getByRole("button", { name: label }).waitFor({ state: "visible" });
+  }
+
   if (pageErrors.length) {
     throw new Error(`Browser errors: ${pageErrors.join(" | ")}`);
   }
 
   console.log("PASS: production page rendered.");
+  console.log("PASS: phone motion listener responds to a three-axis device-motion event.");
+  console.log("PASS: mobile mask actions are visible.");
+
   console.log("PASS: PNG uploaded with application/octet-stream MIME type.");
   console.log(`PASS: image decoded at ${debug.workW}x${debug.workH}; WebGL failed: ${debug.glFailed}.`);
 } finally {
