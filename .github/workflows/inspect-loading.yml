@@ -1,0 +1,36 @@
+name: Inspect Wobble loading code
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/inspect-loading.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show relevant source
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -q grok-workspace.zip -d extracted
+          cd extracted
+          echo "=== ENGINE FILE LOAD ==="
+          sed -n '430,525p' src/lib/jiggle/engine.ts
+          echo "=== ENGINE TEXTURE UPLOAD ==="
+          sed -n '1220,1275p' src/lib/jiggle/engine.ts
+          echo "=== EDITOR OPEN FILE ==="
+          sed -n '275,355p' src/components/jiggle/editor.tsx
+          echo "=== APP ENV TOOLING ==="
+          cat scripts/with-app-env.mjs
+          echo "=== APP ENV PLUGIN ==="
+          grep -nE 'VITE_AUTH|app-env|process.env|loadEnv' scripts/app-env-plugin.mjs | head -100
+          echo "=== GIT IGNORE ==="
+          cat .gitignore 2>/dev/null || true
+          echo "=== DEPLOY NOTES CONTINUED ==="
+          sed -n '1,240p' .grok/references/deploy-target.md
