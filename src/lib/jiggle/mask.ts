@@ -228,6 +228,40 @@ export function smoothBrush(
   }
 }
 
+export function morphMask(
+  source: Uint8Array,
+  w: number,
+  h: number,
+  expand: boolean,
+  iterations = 1,
+) {
+  let current = source.slice();
+  const passes = Math.max(1, Math.min(8, iterations | 0));
+  for (let pass = 0; pass < passes; pass++) {
+    const next = new Uint8Array(current.length);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let value = expand ? 0 : 255;
+        for (let oy = -1; oy <= 1; oy++) {
+          for (let ox = -1; ox <= 1; ox++) {
+            const nx = x + ox;
+            const ny = y + oy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) {
+              if (!expand) value = 0;
+              continue;
+            }
+            const sample = current[ny * w + nx]!;
+            value = expand ? Math.max(value, sample) : Math.min(value, sample);
+          }
+        }
+        next[y * w + x] = value;
+      }
+    }
+    current = next;
+  }
+  return current;
+}
+
 export function maskHasInk(mask: Uint8Array) {
   for (let i = 0; i < mask.length; i += 13) {
     if (mask[i]! > 12) return true;
