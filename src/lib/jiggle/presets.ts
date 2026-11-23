@@ -82,6 +82,60 @@ export const PRESETS: Preset[] = [
     blurb: "Highly exaggerated",
     params: p(97, 12, 8, 18, 18, 100, 100, 100, 26),
   },
+  {
+    id: "slime",
+    name: "Slime",
+    blurb: "Loose, stretchy motion with a slow settle",
+    params: p(94, 18, 32, 30, 14, 82, 100, 90, 22),
+  },
+  {
+    id: "mochi",
+    name: "Mochi",
+    blurb: "Dense, soft and pillowy",
+    params: p(88, 38, 66, 62, 4, 52, 90, 66, 34),
+  },
+  {
+    id: "foam",
+    name: "Foam",
+    blurb: "Light movement with a cushioned stop",
+    params: p(52, 34, 80, 18, 8, 40, 48, 36, 74),
+  },
+  {
+    id: "spring",
+    name: "Spring",
+    blurb: "Snappy rebound and firm structure",
+    params: p(84, 96, 24, 24, 0, 94, 58, 70, 82),
+  },
+  {
+    id: "pudding",
+    name: "Pudding",
+    blurb: "Heavy wobble with a gentle finish",
+    params: p(80, 18, 50, 48, 16, 58, 92, 76, 40),
+  },
+  {
+    id: "fabric",
+    name: "Fabric",
+    blurb: "Loose folds and flowing movement",
+    params: p(46, 58, 54, 34, 12, 32, 76, 48, 62),
+  },
+  {
+    id: "clay",
+    name: "Clay",
+    blurb: "Firm, restrained deformation",
+    params: p(32, 88, 84, 82, 10, 12, 18, 16, 90),
+  },
+  {
+    id: "bubble",
+    name: "Bubble",
+    blurb: "Very light with a buoyant bounce",
+    params: p(98, 16, 14, 8, 0, 98, 84, 96, 20),
+  },
+  {
+    id: "mercury",
+    name: "Mercury",
+    blurb: "Fast, fluid ripples with a sharp response",
+    params: p(58, 42, 14, 72, 32, 66, 82, 72, 18),
+  },
 ];
 
 export function presetById(id: string): Preset {
