@@ -160,7 +160,7 @@ export default defineConfig(({ command, isPreview, mode }) => {
             }
           : {},
       ),
-      ...(command === "build" || (isPreview && !isPagesBuild)
+      ...(!isPagesBuild && (command === "build" || isPreview)
         ? [
             nitro({
               preset: "vercel",
