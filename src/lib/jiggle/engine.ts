@@ -7,6 +7,7 @@ import {
   hexToRgb,
   lerp,
   maskHasInk,
+  morphMask,
   smoothBrush,
   smoothstep,
   stampBrush,
@@ -380,16 +381,22 @@ export class JiggleEngine {
     this.shakePhase = 0;
   }
 
-  applyMotion(ax: number, ay: number) {
+  applyMotion(ax: number, ay: number, az = 0, intervalMs = 16) {
     if (!this.sim || this.paused) return;
-    const sens = this.shakeSensitivity / 100;
-    const mag = Math.hypot(ax, ay);
-    const threshold = lerp(14, 1.5, sens);
-    if (mag < threshold) return;
+    const sens = clamp(this.shakeSensitivity / 100, 0, 1);
+    const mag = Math.hypot(ax, ay, az);
+    const threshold = lerp(9, 2.2, sens);
+    if (!Number.isFinite(mag) || mag < threshold) return;
+
+    // The phone's Z axis points through the screen. Project some of that
+    // impulse onto both canvas axes so front-to-back shakes are not ignored.
+    const screenX = ax + az * 0.7;
+    const screenY = -ay + az * 0.7;
     const unit = this.workW / 1000 || 1;
-    const gain = lerp(8, 90, sens) * unit;
-    const s = ((mag - threshold) / Math.max(mag, 0.001)) * gain * 0.02;
-    this.sim.accelerate(ax * s, -ay * s);
+    const gain = lerp(10, 92, sens) * unit;
+    const eventScale = clamp(intervalMs / 16, 0.5, 2);
+    const strength = ((mag - threshold) / Math.max(mag, 0.001)) * gain * 0.022 * eventScale;
+    this.sim.accelerate(screenX * strength, screenY * strength);
   }
 
   resize() {
@@ -635,6 +642,39 @@ export class JiggleEngine {
     this.pushHistory(rec);
     rec.mask.fill(0);
     rec.freeze.fill(0);
+    this.markMask();
+  }
+
+  invertActiveMask() {
+    const rec = this.activeRec();
+    if (!rec) return;
+    this.pushHistory(rec);
+    for (let i = 0; i < rec.mask.length; i++) rec.mask[i] = 255 - rec.mask[i]!;
+    rec.freeze.fill(0);
+    this.markMask();
+  }
+
+  featherActiveMask() {
+    const rec = this.activeRec();
+    if (!rec) return;
+    this.pushHistory(rec);
+    rec.mask.set(boxBlur(rec.mask, this.mw, this.mh, 6, 2));
+    this.markMask();
+  }
+
+  expandActiveMask() {
+    const rec = this.activeRec();
+    if (!rec) return;
+    this.pushHistory(rec);
+    rec.mask.set(morphMask(rec.mask, this.mw, this.mh, true, 2));
+    this.markMask();
+  }
+
+  contractActiveMask() {
+    const rec = this.activeRec();
+    if (!rec) return;
+    this.pushHistory(rec);
+    rec.mask.set(morphMask(rec.mask, this.mw, this.mh, false, 2));
     this.markMask();
   }
 
