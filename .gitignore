@@ -1,0 +1,10 @@
+node_modules/
+.vercel/output/
+.vercel/cache/
+dist/
+.output/
+.tanstack/tmp/
+*.log
+.env
+.env.*
+!.env.example
