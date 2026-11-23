@@ -65,10 +65,15 @@ jobs:
           enablement: true
 
       - name: Upload the static site
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: dist/client
 
       - name: Publish to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
+
+      - name: Verify the public page and its project-path assets
+        run: node scripts/ci/check-live-pages.mjs
+        env:
+          WOBBLE_PAGES_URL: ${{ steps.deployment.outputs.page_url }}
