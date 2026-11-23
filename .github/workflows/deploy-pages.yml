@@ -71,7 +71,7 @@ jobs:
 
       - name: Publish to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v4
 
       - name: Verify the public page and its project-path assets
         run: node scripts/ci/check-live-pages.mjs
