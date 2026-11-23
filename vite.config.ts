@@ -122,7 +122,7 @@ function authPopupPlugin(): Plugin {
 // The GitHub Pages build uses the repository project-site URL:
 // https://alphacat731-rgb.github.io/wobble/
 export default defineConfig(({ command, isPreview, mode }) => {
-  const isPagesBuild = mode === "pages";
+  const isPagesBuild = mode === "pages" || process.env.WOBBLE_PAGES_BUILD === "1";
 
   return {
     base: isPagesBuild ? "/wobble/" : "/",
@@ -148,13 +148,17 @@ export default defineConfig(({ command, isPreview, mode }) => {
       tanstackStart(
         isPagesBuild
           ? {
-              // Wobble has one public route and no runtime server functions.
-              // Prerender it as a real index.html for static hosting.
-              prerender: {
+              // Wobble is a browser-only editor. SPA mode avoids requiring a
+              // runtime server and emits a static shell for GitHub Pages.
+              spa: {
                 enabled: true,
-                autoSubfolderIndex: false,
-                autoStaticPathsDiscovery: false,
-                crawlLinks: false,
+                prerender: {
+                  outputPath: "/index.html",
+                  crawlLinks: false,
+                },
+              },
+              prerender: {
+                enabled: false,
                 failOnError: true,
               },
             }
