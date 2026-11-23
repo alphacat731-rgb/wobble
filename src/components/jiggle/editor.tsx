@@ -817,7 +817,7 @@ export function Editor() {
         <Field label="Shake sensitivity" value={shake} onChange={setShake} />
         <button
           type="button"
-          aria-label={motion === "on" ? "Disable phone shake" : "Enable phone shake"}
+          aria-label={motion === "on" || motion === "starting" ? "Disable phone shake" : "Enable phone shake"}
           className="h-10 rounded-md bg-surface-3 text-sm"
           onClick={() => (motion === "on" || motion === "starting" ? stopMotion() : void enableMotion())}
         >
