@@ -153,7 +153,7 @@ try {
 
   // Close the bottom sheet through its backdrop before opening the next one.
   // The backdrop intentionally covers the header while a sheet is active.
-  await page.getByRole("button", { name: "Close panel" }).click();
+  await page.getByRole("button", { name: "Close panel" }).click({ position: { x: 350, y: 48 } });
   await page.getByRole("button", { name: "Tools", exact: true }).click();
   for (const label of ["Invert mask", "Feather mask", "Expand mask", "Contract mask"]) {
     await page.getByRole("button", { name: label }).waitFor({ state: "visible" });
