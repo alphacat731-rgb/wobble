@@ -4,6 +4,8 @@ import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Wobble";
+const isPagesBuild = import.meta.env.MODE === "pages";
+const baseUrl = import.meta.env.BASE_URL;
 
 export const Route = createRootRoute({
   head: () => ({
@@ -15,11 +17,18 @@ export const Route = createRootRoute({
       { name: "theme-color", content: "#0c0e12" },
     ],
     links: [
-      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "icon", type: "image/svg+xml", href: `${baseUrl}favicon.svg` },
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" },
-      { rel: "manifest", href: "/__grok/manifest.webmanifest" },
-      { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
+      ...(isPagesBuild
+        ? [
+            { rel: "manifest", href: `${baseUrl}manifest.webmanifest` },
+            { rel: "apple-touch-icon", href: `${baseUrl}__grok/icon-180.png` },
+          ]
+        : [
+            { rel: "manifest", href: "/__grok/manifest.webmanifest" },
+            { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
+          ]),
     ],
   }),
   component: () => (
