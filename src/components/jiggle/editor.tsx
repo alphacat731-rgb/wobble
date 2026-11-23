@@ -1004,14 +1004,6 @@ export function Editor() {
           <IconButton label="Shake selection" disabled={!imageOn} onClick={() => engineRef.current?.shake(1)}>
             <Vibrate className="size-4" />
           </IconButton>
-          <IconButton
-            label={motion === "on" ? "Disable phone shake" : motion === "starting" ? "Stop phone shake setup" : "Enable phone shake"}
-            pressed={motion === "on"}
-            disabled={!imageOn}
-            onClick={() => (motion === "on" || motion === "starting" ? stopMotion() : void enableMotion())}
-          >
-            <Vibrate className="size-4" />
-          </IconButton>
           <IconButton label={overlay ? "Hide selection overlay" : "Show selection overlay"} pressed={overlay} onClick={() => setOverlay((value) => !value)}>
             <Eye className="size-4" />
           </IconButton>
