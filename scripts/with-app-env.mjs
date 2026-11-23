@@ -111,6 +111,13 @@ function main(argv) {
     process.exit(2);
   }
   const env = mergeAppEnv(readAppEnv(projectRoot()), process.env);
+  // TanStack's prerender step starts a second Vite preview process. That
+  // process may use mode=production instead of mode=pages, so preserve the
+  // static-hosting build mode explicitly for the nested preview.
+  const pagesModeIndex = args.indexOf("--mode");
+  const pagesMode = args.includes("--mode=pages") ||
+    (pagesModeIndex >= 0 && args[pagesModeIndex + 1] === "pages");
+  if (pagesMode) env.WOBBLE_PAGES_BUILD = "1";
   const child = spawn(command, args, { stdio: "inherit", env });
   // The dev server is long-running and is stopped by signalling this wrapper.
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
